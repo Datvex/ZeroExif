@@ -39,7 +39,7 @@ T = {
         "output_path": "Output path",
         "language": "Language",
         "lang_name": "English",
-        "tip_main": "Type number to select, 'esc' to go back, or Ctrl+C to exit",
+        "tip_main": "Type number to select, or Ctrl+C to exit",
         "action": "Action:",
         "change_path": "Change output path",
         "change_lang": "Change language",
@@ -77,7 +77,7 @@ T = {
         "output_path": "Путь сохранения",
         "language": "Язык",
         "lang_name": "Русский",
-        "tip_main": "Введите номер для выбора, 'esc' для возврата, или Ctrl+C для выхода",
+        "tip_main": "Введите номер для выбора, или Ctrl+C для выхода",
         "action": "Действие:",
         "change_path": "Изменить путь сохранения",
         "change_lang": "Изменить язык",
@@ -115,7 +115,7 @@ T = {
         "output_path": "输出路径",
         "language": "语言",
         "lang_name": "中文",
-        "tip_main": "输入数字进行选择，'esc' 返回，或按 Ctrl+C 退出",
+        "tip_main": "输入数字进行选择，或按 Ctrl+C 退出",
         "action": "操作:",
         "change_path": "更改输出路径",
         "change_lang": "更改语言",
@@ -285,7 +285,7 @@ def print_tip(text, m, bw):
             print(f"{m}      {C_GRAY}{line}{C_RESET}")
     print()
 
-def kilo_input(prompt, redraw_callback):
+def kilo_input(prompt, redraw_callback, allow_esc=True):
     chars = []
     try:
         sys.stdout.write(f"{C_RESET}\033[?25l")
@@ -298,7 +298,7 @@ def kilo_input(prompt, redraw_callback):
             if len(disp) > avail:
                 disp = "..." + disp[-(avail - 3):] if avail > 3 else disp[-avail:]
             spaces = max(0, bw - len(prefix) - len(disp))
-            box_render = f"\r{m}{C_BLUE}▌{C_BG_INPUT}{C_GRAY}{prefix}{C_WHITE}{disp}{' ' * spaces}\033[K{C_RESET}"
+            box_render = f"\r{m}{C_BLUE}▌{C_BG_INPUT}{C_GRAY}{prefix}{C_WHITE}{disp}{' ' * spaces}{C_RESET}\033[K"
             sys.stdout.write(box_render)
             if spaces > 0:
                 sys.stdout.write(f"\033[{spaces}D")
@@ -313,7 +313,8 @@ def kilo_input(prompt, redraw_callback):
                 if msvcrt.kbhit():
                     ch = msvcrt.getwch()
                     if ch == '\x1b':
-                        return 'esc'
+                        if allow_esc:
+                            return 'esc'
                     elif ch in ('\r', '\n'):
                         sys.stdout.write('\n')
                         return ''.join(chars)
@@ -356,7 +357,8 @@ def kilo_input(prompt, redraw_callback):
                                     while i < len(chunk) and chunk[i] not in 'ABCDEFGHJKMPRSTVXZcfghinqrstuv':
                                         i += 1
                                 else:
-                                    return 'esc'
+                                    if allow_esc:
+                                        return 'esc'
                             elif ch in ('\n', '\r'):
                                 sys.stdout.write('\n')
                                 return ''.join(chars)
@@ -630,16 +632,16 @@ def main_menu(lang, output_dir):
             print_tip(t["tip_main"], m, bw)
             return tw, bw, m
 
-        choice = kilo_input(t["action"], draw_main)
+        choice = kilo_input(t["action"], draw_main, allow_esc=False)
 
-        if is_esc(choice):
-            continue
-        elif choice == '1':
+        if choice == '1':
             run_script(lang, output_dir)
         elif choice == '2':
             lang, output_dir = settings_menu(lang, output_dir)
 
 if __name__ == "__main__":
+    sys.stdout.write("\033[?1049h\033[H")
+    sys.stdout.flush()
     try:
         l, o = load_config()
         main_menu(l, o)
@@ -647,3 +649,4 @@ if __name__ == "__main__":
         pass
     finally:
         sys.stdout.write(f"{C_RESET}\033[?1049l\033[?25h\n")
+        sys.stdout.flush()
