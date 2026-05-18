@@ -1,7 +1,8 @@
 <div align="center">
   <p>
     <a href="README_RU.md">🇷🇺 Русский</a> &nbsp;&nbsp;•&nbsp;&nbsp;
-    <a href="README.md"><b>🇺🇸 English</b></a>
+    <a href="README.md"><b>🇺🇸 English</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
+    <a href="README_CN.md">🇨🇳 中文</a>
   </p>
 
   <h1>🛡️ ZeroExif</h1>
@@ -47,13 +48,16 @@ cd ZeroExif
 The script requires the `Pillow` library to process images.
 ```bash
 pip install -r Requirements.txt
-# OR manually: pip install Pillow
 ```
 
 **3. Run the script:**
 ```bash
 python ZeroExif.py
-# Termux users: python ZeroExif_NO_TUI.py
+```
+
+**3.1 Run the script (For Termux):**
+```bash
+python ZeroExif_NO_TUI.py
 ```
 
 ---
@@ -102,9 +106,3 @@ Press <kbd>0</kbd> to execute the cleaning process.
 
 > **PermissionError / Access denied**
 > Ensure the script has write permissions for your specified Output Path. If you are on Termux, ensure you have granted storage permissions via `termux-setup-storage`.
-
----
-
-<div align="center">
-  <i>Developed with ❤️ for Privacy.</i>
-</div>
