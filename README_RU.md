@@ -1,7 +1,8 @@
 <div align="center">
   <p>
     <a href="README_RU.md"><b>🇷🇺 Русский</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
-    <a href="README.md">🇺🇸 English</a>
+    <a href="README.md">🇺🇸 English</a> &nbsp;&nbsp;•&nbsp;&nbsp;
+    <a href="README_CN.md">🇨🇳 中文</a>
   </p>
 
   <h1>🛡️ ZeroExif</h1>
@@ -47,13 +48,16 @@ cd ZeroExif
 Для работы с изображениями скрипту требуется библиотека `Pillow`.
 ```bash
 pip install -r Requirements.txt
-# ИЛИ вручную: pip install Pillow
 ```
 
 **3. Запустите скрипт:**
 ```bash
 python ZeroExif.py
-# Пользователи Termux: python ZeroExif_NO_TUI.py
+```
+
+**3.1 Запустите скрипт (Для Termux):**
+```bash
+python ZeroExif_NO_TUI.py
 ```
 
 ---
@@ -102,9 +106,3 @@ python ZeroExif.py
 
 > **Ошибка: Нет доступа к папке (PermissionError)**
 > Убедитесь, что у скрипта есть права на запись в папку, указанную в "Пути сохранения". В Termux необходимо предварительно выдать доступ к хранилищу командой `termux-setup-storage`.
-
----
-
-<div align="center">
-  <i>Разработано с ❤️ для защиты ваших личных данных.</i>
-</div>
