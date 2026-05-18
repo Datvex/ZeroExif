@@ -497,20 +497,25 @@ def run_script(lang, output_dir):
     file_data = []
     seen = set()
 
-    for p in paths:
-        if os.path.isdir(p):
-            for root, _, files in os.walk(p):
-                for f in files:
-                    full_p = os.path.join(root, f)
-                    if full_p not in seen and is_image_file(full_p):
-                        seen.add(full_p)
-                        rel_p = os.path.relpath(full_p, base_dir)
-                        file_data.append({"path": full_p, "name": rel_p, "selected": True, "supported": True})
-        elif os.path.isfile(p):
-            if p not in seen and is_image_file(p):
-                seen.add(p)
-                rel_p = os.path.relpath(p, base_dir) if p.startswith(base_dir) else os.path.basename(p)
-                file_data.append({"path": p, "name": rel_p, "selected": True, "supported": True})
+    def process_scanned_paths(input_paths):
+        for p in input_paths:
+            if os.path.isdir(p):
+                for root, _, files in os.walk(p):
+                    for f in files:
+                        full_p = os.path.join(root, f)
+                        abs_p = os.path.abspath(full_p)
+                        if abs_p not in seen and is_image_file(full_p):
+                            seen.add(abs_p)
+                            rel_p = os.path.relpath(full_p, base_dir)
+                            file_data.append({"path": full_p, "name": rel_p, "selected": True, "supported": True})
+            elif os.path.isfile(p):
+                abs_p = os.path.abspath(p)
+                if abs_p not in seen and is_image_file(p):
+                    seen.add(abs_p)
+                    rel_p = os.path.relpath(p, base_dir) if p.startswith(base_dir) else os.path.basename(p)
+                    file_data.append({"path": p, "name": rel_p, "selected": True, "supported": True})
+
+    process_scanned_paths(paths)
 
     if not file_data:
         kilo_input(
@@ -554,22 +559,26 @@ def run_script(lang, output_dir):
             print_tip(t["tip_toggle"], m, bw)
             return tw, bw, m
 
-        choice = kilo_input(t["toggle"], draw_selection).strip().lower()
+        choice = kilo_input(t["toggle"], draw_selection).strip()
 
         if is_esc(choice):
             return
 
         if choice == '0':
             break
-        elif choice == 'n':
+        elif choice.lower() == 'n':
             page += 1
-        elif choice == 'p':
+        elif choice.lower() == 'p':
             page -= 1
         elif choice.isdigit():
             idx = int(choice) - 1
             if 0 <= idx < len(visible_data):
                 real_idx = start_idx + idx
                 file_data[real_idx]["selected"] = not file_data[real_idx]["selected"]
+        elif choice:
+            new_paths = parse_dropped_paths(choice)
+            if new_paths:
+                process_scanned_paths(new_paths)
 
     selected_files = [i for i in file_data if i["selected"]]
 
