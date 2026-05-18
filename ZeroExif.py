@@ -1027,7 +1027,7 @@ def run_script(lang, output_dir):
                 print_tip(t["tip_toggle"], m, bw)
                 return tw, bw, m
 
-            choice = kilo_input(t["toggle"], draw_selection).strip()
+            choice = kilo_input(t["toggle"], draw_selection).strip().lower()
 
             if is_esc(choice):
                 return
@@ -1037,9 +1037,9 @@ def run_script(lang, output_dir):
                     kilo_input(f"{t['press_enter_return']}:", lambda: (clear_screen(15), draw_logo(), print(f"\n{get_layout()[2]}{C_YELLOW}{t['err_no_selected']}{C_RESET}\n"), get_layout())[-1])
                     continue
                 break
-            elif choice.lower() == 'n':
+            elif choice == 'n':
                 page += 1
-            elif choice.lower() == 'p':
+            elif choice == 'p':
                 page -= 1
             elif choice.isdigit():
                 idx = int(choice) - 1
@@ -1050,7 +1050,7 @@ def run_script(lang, output_dir):
                 new_paths = parse_dropped_paths(choice)
                 if new_paths:
                     process_scanned_paths(new_paths)
-                    
+
         while True:
             def draw_exif():
                 clear_screen(18)
@@ -1127,20 +1127,20 @@ def run_script(lang, output_dir):
                         del exif[34853]
                         
                     if exif_opts[2]:
-                        for t in [271, 272, 315]:
-                            if t in exif: del exif[t]
+                        for tag in [271, 272, 315]:
+                            if tag in exif: del exif[tag]
                         if 34665 in exif:
                             ifd = exif.get_ifd(34665)
-                            for t in [33434, 33437, 34850, 34855, 37386, 41989, 42036]:
-                                if t in ifd: del ifd[t]
+                            for tag in [33434, 33437, 34850, 34855, 37386, 41989, 42036]:
+                                if tag in ifd: del ifd[tag]
                             exif[34665] = ifd
 
                     if exif_opts[3]:
                         if 306 in exif: del exif[306]
                         if 34665 in exif:
                             ifd = exif.get_ifd(34665)
-                            for t in [36867, 36868]:
-                                if t in ifd: del ifd[t]
+                            for tag in [36867, 36868]:
+                                if tag in ifd: del ifd[tag]
                             exif[34665] = ifd
                             
                     img.save(out_path, exif=exif, save_all=is_animated)
