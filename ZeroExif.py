@@ -633,7 +633,7 @@ def main_menu(lang, output_dir):
         choice = kilo_input(t["action"], draw_main)
 
         if is_esc(choice):
-            sys.exit(0)
+            continue
         elif choice == '1':
             run_script(lang, output_dir)
         elif choice == '2':
