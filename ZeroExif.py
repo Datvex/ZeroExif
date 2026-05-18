@@ -6,7 +6,13 @@ import shlex
 import urllib.parse
 import time
 from pathlib import Path
-from PIL import Image
+
+try:
+    from PIL import Image
+except ImportError:
+    print("\n\033[38;2;248;246;117mОшибка: Библиотека Pillow не установлена.\033[0m")
+    print("Установите её командой: \033[1mpip install Pillow\033[0m\n")
+    sys.exit(1)
 
 C_BLUE = "\033[38;2;0;175;255m"
 C_YELLOW = "\033[38;2;248;246;117m"
@@ -54,13 +60,13 @@ T = {
         "files": "Images",
         "selected": "Selected:",
         "of": "of",
-        "tip_toggle": "Type numbers to toggle, 0 to start, or Drag & Drop additional files here",
-        "toggle": "Toggle:",
+        "tip_toggle": "1-10 to toggle, 'n'/'p' for pages, 0 to start, or Drag & Drop more",
+        "toggle": "Toggle/Page:",
         "err_no_selected": "No images selected.",
         "success": "Success",
         "success_msg": "EXIF data successfully removed.",
         "output_loc": "Output location",
-        "err_save": "Save error:"
+        "err_save": "Save error(s) occurred:"
     },
     "ru": {
         "commands": "Команды",
@@ -92,13 +98,13 @@ T = {
         "files": "Фотографии",
         "selected": "Выбрано:",
         "of": "из",
-        "tip_toggle": "Введите номера для выбора, 0 для старта, или перетащите сюда еще фото",
-        "toggle": "Выбор:",
+        "tip_toggle": "1-10 для выбора, 'n'/'p' для страниц, 0 для старта, или перетащите еще",
+        "toggle": "Выбор/Стр:",
         "err_no_selected": "Фотографии не выбраны.",
         "success": "Успешно",
         "success_msg": "Метаданные успешно удалены.",
         "output_loc": "Место сохранения",
-        "err_save": "Ошибка сохранения:"
+        "err_save": "Возникли ошибки при сохранении:"
     },
     "zh": {
         "commands": "命令",
@@ -130,13 +136,13 @@ T = {
         "files": "照片",
         "selected": "已选择:",
         "of": "/",
-        "tip_toggle": "输入数字进行切换，输入 0 开始，或拖放更多照片到此处",
-        "toggle": "切换:",
+        "tip_toggle": "1-10 切换, 'n'/'p' 翻页, 0 开始, 或拖放更多照片",
+        "toggle": "切换/翻页:",
         "err_no_selected": "未选择任何照片。",
         "success": "成功",
         "success_msg": "EXIF 数据已成功删除。",
         "output_loc": "输出位置",
-        "err_save": "保存错误:"
+        "err_save": "保存时发生错误:"
     }
 }
 
@@ -240,8 +246,11 @@ def clear_screen(lines=18):
     sys.stdout.flush()
 
 def truncate_text(text, max_len):
+    max_len = max(0, max_len)
     if len(text) <= max_len:
         return text
+    if max_len < 4:
+        return "..."[:max_len]
     return text[:max_len - 3] + "..."
 
 def draw_logo():
@@ -289,15 +298,13 @@ def kilo_input(prompt, redraw_callback):
             if len(disp) > avail:
                 disp = "..." + disp[-(avail - 3):] if avail > 3 else disp[-avail:]
             spaces = max(0, bw - len(prefix) - len(disp))
-            box_render = f"\r{m}{C_BLUE}▌{C_BG_INPUT}{C_GRAY}{prefix}{C_WHITE}{disp}{' ' * spaces}{C_RESET}"
+            box_render = f"\r{m}{C_BLUE}▌{C_BG_INPUT}{C_GRAY}{prefix}{C_WHITE}{disp}{' ' * spaces}\033[K{C_RESET}"
             sys.stdout.write(box_render)
             if spaces > 0:
                 sys.stdout.write(f"\033[{spaces}D")
             sys.stdout.flush()
 
         draw_prompt()
-        sys.stdout.write(f"{C_WHITE}\033[?25h")
-        sys.stdout.flush()
         last_size = get_term_width()
 
         if sys.platform == 'win32':
@@ -368,11 +375,12 @@ def kilo_input(prompt, redraw_callback):
                             last_size = curr_size
                             tw, bw, m = redraw_callback()
                             draw_prompt()
+                        time.sleep(0.01) 
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)
-    except KeyboardInterrupt:
-        sys.stdout.write(f"{C_RESET}\033[?1049l\033[?25h\n")
-        sys.exit(0)
+    finally:
+        sys.stdout.write(f"{C_RESET}\033[?25h\033[K")
+        sys.stdout.flush()
 
 def is_esc(val):
     return val.lower() in ('esc', 'q', '\x1b')
@@ -430,9 +438,9 @@ def settings_menu(lang, output_dir):
                         lambda: (
                             clear_screen(15),
                             draw_logo(),
-                            get_layout(),
-                            print(f"\n{get_layout()[2]}{C_WHITE}{t['path_updated']}{C_RESET}\n")
-                        )[:3]
+                            print(f"\n{get_layout()[2]}{C_WHITE}{t['path_updated']}{C_RESET}\n"),
+                            get_layout()
+                        )[-1]
                     )
                 except Exception as e:
                     kilo_input(
@@ -440,9 +448,9 @@ def settings_menu(lang, output_dir):
                         lambda: (
                             clear_screen(15),
                             draw_logo(),
-                            get_layout(),
-                            print(f"\n{get_layout()[2]}{C_YELLOW}{e}{C_RESET}\n")
-                        )[:3]
+                            print(f"\n{get_layout()[2]}{C_YELLOW}{e}{C_RESET}\n"),
+                            get_layout()
+                        )[-1]
                     )
         elif choice == '2':
             def draw_lang():
@@ -483,91 +491,127 @@ def run_script(lang, output_dir):
     if not paths:
         return
 
-    target_dir = paths[0] if os.path.isdir(paths[0]) else os.path.dirname(paths[0])
+    base_dir = paths[0] if os.path.isdir(paths[0]) else os.path.dirname(paths[0])
     file_data = []
+    seen = set()
 
-    for root, _, files in os.walk(target_dir):
-        for f in files:
-            full_p = os.path.join(root, f)
-            rel_p = os.path.relpath(full_p, target_dir)
-            is_img = is_image_file(full_p)
-            file_data.append({
-                "path": full_p,
-                "name": rel_p,
-                "selected": is_img,
-                "supported": is_img
-            })
+    for p in paths:
+        if os.path.isdir(p):
+            for root, _, files in os.walk(p):
+                for f in files:
+                    full_p = os.path.join(root, f)
+                    if full_p not in seen and is_image_file(full_p):
+                        seen.add(full_p)
+                        rel_p = os.path.relpath(full_p, base_dir)
+                        file_data.append({"path": full_p, "name": rel_p, "selected": True, "supported": True})
+        elif os.path.isfile(p):
+            if p not in seen and is_image_file(p):
+                seen.add(p)
+                rel_p = os.path.relpath(p, base_dir) if p.startswith(base_dir) else os.path.basename(p)
+                file_data.append({"path": p, "name": rel_p, "selected": True, "supported": True})
 
-    if not any(i["supported"] for i in file_data):
+    if not file_data:
+        kilo_input(
+            f"{t['press_enter_return']}:",
+            lambda: (clear_screen(15), draw_logo(), print(f"\n{get_layout()[2]}{C_YELLOW}{t['err_empty']}{C_RESET}\n"), get_layout())[-1]
+        )
         return
 
     memory = load_memory()
-    disabled = memory.get(os.path.abspath(target_dir), {}).get("disabled_files", [])
+    disabled = memory.get(os.path.abspath(base_dir), {}).get("disabled_files", [])
 
     for item in file_data:
         if item["name"] in disabled:
             item["selected"] = False
 
+    page = 0
+    per_page = 10
+
     while True:
+        total_items = len(file_data)
+        total_pages = max(1, (total_items + per_page - 1) // per_page)
+        page = max(0, min(page, total_pages - 1))
+        
+        start_idx = page * per_page
+        end_idx = start_idx + per_page
+        visible_data = file_data[start_idx:end_idx]
+
         def draw_selection():
             clear_screen(20)
             draw_logo()
             tw, bw, m = get_layout()
             draw_header(m, bw, t["select_files"])
-            print(f"{m}{C_BLUE}{t['dir']}{C_RESET}\n{m}{C_WHITE}{truncate_text(target_dir, bw)}{C_RESET}\n")
+            print(f"{m}{C_BLUE}{t['dir']}{C_RESET}\n{m}{C_WHITE}{truncate_text(base_dir, bw)}{C_RESET}\n")
 
-            for i, item in enumerate(file_data[:10]):
-                if not item["supported"]:
-                    continue
+            for i, item in enumerate(visible_data):
                 color = C_WHITE if item["selected"] else C_DARK_GRAY
                 print(f"{m}{color}{i + 1:<2}  {truncate_text(item['name'], bw - 6)}{C_RESET}")
 
             sel_count = sum(1 for i in file_data if i["selected"])
-            supported_count = sum(1 for i in file_data if i["supported"])
-            print(f"\n{m}{C_GRAY}{t['selected']} {C_WHITE}{sel_count}{C_GRAY} {t['of']} {supported_count}{C_RESET}")
+            print(f"\n{m}{C_GRAY}{t['selected']} {C_WHITE}{sel_count}{C_GRAY} {t['of']} {total_items}  |  Page {page + 1}/{total_pages}{C_RESET}")
             print_tip(t["tip_toggle"], m, bw)
             return tw, bw, m
 
-        choice = kilo_input(t["toggle"], draw_selection).strip()
+        choice = kilo_input(t["toggle"], draw_selection).strip().lower()
 
         if is_esc(choice):
             return
 
         if choice == '0':
             break
-
-        if choice.isdigit():
+        elif choice == 'n':
+            page += 1
+        elif choice == 'p':
+            page -= 1
+        elif choice.isdigit():
             idx = int(choice) - 1
-            if 0 <= idx < len(file_data) and file_data[idx]["supported"]:
-                file_data[idx]["selected"] = not file_data[idx]["selected"]
+            if 0 <= idx < len(visible_data):
+                real_idx = start_idx + idx
+                file_data[real_idx]["selected"] = not file_data[real_idx]["selected"]
 
     selected_files = [i for i in file_data if i["selected"]]
 
     if not selected_files:
         return
 
-    save_memory(target_dir, [i["name"] for i in file_data if i["supported"] and not i["selected"]])
+    save_memory(base_dir, [i["name"] for i in file_data if not i["selected"]])
     os.makedirs(output_dir, exist_ok=True)
+
+    errors = []
 
     for item in selected_files:
         try:
-            img = Image.open(item["path"])
-            data = list(img.getdata())
-            clean_img = Image.new(img.mode, img.size)
-            clean_img.putdata(data)
-            clean_img.save(os.path.join(output_dir, os.path.basename(item["path"])), icc_profile=None)
-        except:
-            pass
+            out_path = os.path.join(output_dir, item["name"])
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-    kilo_input(
-        f"{t['press_enter_return']}:",
-        lambda: (
-            clear_screen(15),
-            draw_logo(),
-            get_layout(),
-            print(f"\n{get_layout()[2]}{C_WHITE}{t['success_msg']}{C_RESET}\n")
-        )[:3]
-    )
+            img = Image.open(item["path"])
+
+            ext = item["path"].lower().split('.')[-1]
+            if ext in ['jpg', 'jpeg'] and img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+                
+            is_animated = getattr(img, "is_animated", False)
+
+            img.save(out_path, save_all=is_animated)
+
+        except Exception as e:
+            errors.append(f"{os.path.basename(item['path'])}: {str(e)}")
+
+    def draw_result():
+        clear_screen(15)
+        draw_logo()
+        tw, bw, m = get_layout()
+        if errors:
+            print(f"\n{m}{C_YELLOW}{t['err_save']}{C_RESET}")
+            for err in errors[:5]:
+                print(f"{m}{C_GRAY}{truncate_text(err, bw)}{C_RESET}")
+            if len(errors) > 5:
+                print(f"{m}{C_GRAY}... and {len(errors)-5} more{C_RESET}")
+        else:
+            print(f"\n{m}{C_WHITE}{t['success_msg']}{C_RESET}\n")
+        return tw, bw, m
+
+    kilo_input(f"{t['press_enter_return']}:", lambda: (draw_result())[-1])
 
 def main_menu(lang, output_dir):
     while True:
@@ -600,4 +644,6 @@ if __name__ == "__main__":
         l, o = load_config()
         main_menu(l, o)
     except KeyboardInterrupt:
+        pass
+    finally:
         sys.stdout.write(f"{C_RESET}\033[?1049l\033[?25h\n")
