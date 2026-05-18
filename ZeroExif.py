@@ -191,13 +191,19 @@ T = {
         "files": "Images",
         "selected": "Selected:",
         "of": "of",
-        "tip_toggle": "1-10 to toggle, 'n'/'p' for pages, 0 to start, or Drag & Drop more",
+        "tip_toggle": "1-10 to toggle, 'n'/'p' for pages, 0 to next step, or Drag & Drop more",
         "toggle": "Toggle/Page:",
         "err_no_selected": "No images selected.",
         "success": "Success",
         "success_msg": "EXIF data successfully removed.",
         "output_loc": "Output location",
-        "err_save": "Save error(s) occurred:"
+        "err_save": "Save error(s) occurred:",
+        "exif_title": "Select data to remove",
+        "exif_all": "All Metadata (EXIF, XMP, ICC) - Recommended",
+        "exif_gps": "GPS / Location Coordinates",
+        "exif_cam": "Camera & Lens Information",
+        "exif_date": "Date & Time",
+        "tip_exif": "Type 1-4 to toggle, '0' to start cleaning"
     },
     "ru": {
         "commands": "Команды",
@@ -229,13 +235,19 @@ T = {
         "files": "Фотографии",
         "selected": "Выбрано:",
         "of": "из",
-        "tip_toggle": "1-10 для выбора, 'n'/'p' для страниц, 0 для старта, или перетащите еще",
+        "tip_toggle": "1-10 для выбора, 'n'/'p' для страниц, 0 для продолжения, или перетащите еще",
         "toggle": "Выбор/Стр:",
         "err_no_selected": "Фотографии не выбраны.",
         "success": "Успешно",
         "success_msg": "Метаданные успешно удалены.",
         "output_loc": "Место сохранения",
-        "err_save": "Возникли ошибки при сохранении:"
+        "err_save": "Возникли ошибки при сохранении:",
+        "exif_title": "Выбор данных для удаления",
+        "exif_all": "Все метаданные (EXIF, XMP, ICC) - Рекомендуется",
+        "exif_gps": "GPS / Координаты съемки",
+        "exif_cam": "Модель камеры и параметры объектива",
+        "exif_date": "Дата и время съемки",
+        "tip_exif": "Введите 1-4 для выбора, '0' для начала очистки"
     },
     "zh": {
         "commands": "命令",
@@ -267,13 +279,19 @@ T = {
         "files": "照片",
         "selected": "已选择:",
         "of": "/",
-        "tip_toggle": "1-10 切换, 'n'/'p' 翻页, 0 开始, 或拖放更多照片",
+        "tip_toggle": "1-10 切换, 'n'/'p' 翻页, 0 下一步, 或拖放更多照片",
         "toggle": "切换/翻页:",
         "err_no_selected": "未选择任何照片。",
         "success": "成功",
         "success_msg": "EXIF 数据已成功删除。",
         "output_loc": "输出位置",
-        "err_save": "保存时发生错误:"
+        "err_save": "保存时发生错误:",
+        "exif_title": "选择要删除的数据",
+        "exif_all": "所有元数据 (推荐)",
+        "exif_gps": "GPS / 位置坐标",
+        "exif_cam": "相机和镜头信息",
+        "exif_date": "日期和时间",
+        "tip_exif": "输入 1-4 进行切换，'0' 开始清理"
     }
 }
 
@@ -979,61 +997,112 @@ def run_script(lang, output_dir):
 
     page = 0
     per_page = 10
+    exif_opts = [True, False, False, False] 
 
     while True:
-        total_items = len(file_data)
-        total_pages = max(1, (total_items + per_page - 1) // per_page)
-        page = max(0, min(page, total_pages - 1))
+        go_back_to_files = False
         
-        start_idx = page * per_page
-        end_idx = start_idx + per_page
-        visible_data = file_data[start_idx:end_idx]
+        while True:
+            total_items = len(file_data)
+            total_pages = max(1, (total_items + per_page - 1) // per_page)
+            page = max(0, min(page, total_pages - 1))
+            
+            start_idx = page * per_page
+            end_idx = start_idx + per_page
+            visible_data = file_data[start_idx:end_idx]
 
-        def draw_selection():
-            clear_screen(20)
-            draw_logo()
-            tw, bw, m = get_layout()
-            draw_header(m, bw, t["select_files"])
-            print(f"{m}{C_BLUE}{t['dir']}{C_RESET}\n{m}{C_WHITE}{truncate_text(base_dir, bw)}{C_RESET}\n")
+            def draw_selection():
+                clear_screen(20)
+                draw_logo()
+                tw, bw, m = get_layout()
+                draw_header(m, bw, t["select_files"])
+                print(f"{m}{C_BLUE}{t['dir']}{C_RESET}\n{m}{C_WHITE}{truncate_text(base_dir, bw)}{C_RESET}\n")
 
-            for i, item in enumerate(visible_data):
-                color = C_WHITE if item["selected"] else C_DARK_GRAY
-                print(f"{m}{color}{i + 1:<2}  {truncate_text(item['name'], bw - 6)}{C_RESET}")
+                for i, item in enumerate(visible_data):
+                    color = C_WHITE if item["selected"] else C_DARK_GRAY
+                    print(f"{m}{color}{i + 1:<2}  {truncate_text(item['name'], bw - 6)}{C_RESET}")
 
-            sel_count = sum(1 for i in file_data if i["selected"])
-            print(f"\n{m}{C_GRAY}{t['selected']} {C_WHITE}{sel_count}{C_GRAY} {t['of']} {total_items}  |  Page {page + 1}/{total_pages}{C_RESET}")
-            print_tip(t["tip_toggle"], m, bw)
-            return tw, bw, m
+                sel_count = sum(1 for i in file_data if i["selected"])
+                print(f"\n{m}{C_GRAY}{t['selected']} {C_WHITE}{sel_count}{C_GRAY} {t['of']} {total_items}  |  Page {page + 1}/{total_pages}{C_RESET}")
+                print_tip(t["tip_toggle"], m, bw)
+                return tw, bw, m
 
-        choice = kilo_input(t["toggle"], draw_selection).strip()
+            choice = kilo_input(t["toggle"], draw_selection).strip()
 
-        if is_esc(choice):
-            return
+            if is_esc(choice):
+                return
 
-        if choice == '0':
-            break
-        elif choice.lower() == 'n':
-            page += 1
-        elif choice.lower() == 'p':
-            page -= 1
-        elif choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(visible_data):
-                real_idx = start_idx + idx
-                file_data[real_idx]["selected"] = not file_data[real_idx]["selected"]
-        elif choice:
-            new_paths = parse_dropped_paths(choice)
-            if new_paths:
-                process_scanned_paths(new_paths)
+            if choice == '0':
+                if not any(i["selected"] for i in file_data):
+                    kilo_input(f"{t['press_enter_return']}:", lambda: (clear_screen(15), draw_logo(), print(f"\n{get_layout()[2]}{C_YELLOW}{t['err_no_selected']}{C_RESET}\n"), get_layout())[-1])
+                    continue
+                break
+            elif choice.lower() == 'n':
+                page += 1
+            elif choice.lower() == 'p':
+                page -= 1
+            elif choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < len(visible_data):
+                    real_idx = start_idx + idx
+                    file_data[real_idx]["selected"] = not file_data[real_idx]["selected"]
+            elif choice:
+                new_paths = parse_dropped_paths(choice)
+                if new_paths:
+                    process_scanned_paths(new_paths)
+                    
+        while True:
+            def draw_exif():
+                clear_screen(18)
+                draw_logo()
+                tw, bw, m = get_layout()
+                draw_header(m, bw, t["exif_title"])
+                
+                options = [
+                    t["exif_all"],
+                    t["exif_gps"],
+                    t["exif_cam"],
+                    t["exif_date"]
+                ]
+                
+                for i, opt_text in enumerate(options):
+                    is_sel = exif_opts[i]
+                    prefix = f"{C_WHITE}[{C_YELLOW}*{C_WHITE}]" if is_sel else f"{C_DARK_GRAY}[ ]"
+                    color = C_WHITE if is_sel else C_GRAY
+                    print(f"{m}{prefix} {C_YELLOW}{i+1}{C_RESET} {color}{opt_text}{C_RESET}")
+                
+                print_tip(t["tip_exif"], m, bw)
+                return tw, bw, m
+
+            choice = kilo_input("Toggle (0 to start):", draw_exif).strip()
+            
+            if is_esc(choice):
+                go_back_to_files = True
+                break
+            if choice == '0':
+                break
+            
+            if choice in ['1', '2', '3', '4']:
+                idx = int(choice) - 1
+                if choice == '1':
+                    exif_opts = [True, False, False, False]
+                else:
+                    if exif_opts[0]:
+                        exif_opts[0] = False
+                        exif_opts[idx] = True
+                    else:
+                        exif_opts[idx] = not exif_opts[idx]
+                        if not any(exif_opts):
+                            exif_opts[0] = True
+                            
+        if go_back_to_files:
+            continue
+            
+        break
 
     selected_files = [i for i in file_data if i["selected"]]
-
-    if not selected_files:
-        return
-
     save_memory(base_dir, [i["name"] for i in file_data if not i["selected"]])
     os.makedirs(output_dir, exist_ok=True)
-
     errors = []
 
     for item in selected_files:
@@ -1042,14 +1111,41 @@ def run_script(lang, output_dir):
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
             img = Image.open(item["path"])
-
             ext = item["path"].lower().split('.')[-1]
+            
             if ext in ['jpg', 'jpeg'] and img.mode in ('RGBA', 'P'):
                 img = img.convert('RGB')
                 
             is_animated = getattr(img, "is_animated", False)
 
-            img.save(out_path, save_all=is_animated)
+            if exif_opts[0]:
+                img.save(out_path, save_all=is_animated)
+            else:
+                exif = img.getexif()
+                if exif:
+                    if exif_opts[1] and 34853 in exif:
+                        del exif[34853]
+                        
+                    if exif_opts[2]:
+                        for t in [271, 272, 315]:
+                            if t in exif: del exif[t]
+                        if 34665 in exif:
+                            ifd = exif.get_ifd(34665)
+                            for t in [33434, 33437, 34850, 34855, 37386, 41989, 42036]:
+                                if t in ifd: del ifd[t]
+                            exif[34665] = ifd
+
+                    if exif_opts[3]:
+                        if 306 in exif: del exif[306]
+                        if 34665 in exif:
+                            ifd = exif.get_ifd(34665)
+                            for t in [36867, 36868]:
+                                if t in ifd: del ifd[t]
+                            exif[34665] = ifd
+                            
+                    img.save(out_path, exif=exif, save_all=is_animated)
+                else:
+                    img.save(out_path, save_all=is_animated)
 
         except Exception as e:
             errors.append(f"{os.path.basename(item['path'])}: {str(e)}")
